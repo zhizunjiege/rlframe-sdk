@@ -1,0 +1,3 @@
+[submodule "3rd/rlframe-protos"]
+	path = 3rd/rlframe-protos
+	url = https://github.com/zhizunjiege/rlframe-protos.git

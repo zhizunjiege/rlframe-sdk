@@ -1,0 +1,32 @@
+{
+  "simenv-main": {
+    "infos": {
+      "type": "simenv",
+      "name": "simenv",
+      "host": "192.168.199.170",
+      "port": 10001,
+      "desc": "simenv service"
+    },
+    "configs": {
+      "type": "CQSim",
+      "args": {}
+    }
+  },
+  "agent-main": {
+    "infos": {
+      "type": "agent",
+      "name": "agent",
+      "host": "192.168.199.170",
+      "port": 10002,
+      "desc": "agent service"
+    },
+    "configs": {
+      "training": true,
+      "type": "DQN",
+      "hypers": {},
+      "sifunc": "",
+      "oafunc": "",
+      "rewfunc": ""
+    }
+  }
+}

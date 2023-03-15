@@ -1,0 +1,53 @@
+{
+  "platform": {
+    "ctrl_addr": "192.168.199.170:50041",
+    "res_addr": "192.168.199.170:8001",
+    "x_token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhc2NvcGUiOiIiLCJleHAiOjQ4MTAxOTcxNTQsImlkZW50aXR5IjoxLCJuaWNlIjoiYWRtaW4iLCJvcmlnX2lhdCI6MTY1NjU2MTE1NCwicm9sZWlkIjoxLCJyb2xla2V5IjoiYWRtaW4iLCJyb2xlbmFtZSI6Iuezu-e7n-euoeeQhuWRmCJ9.BvjGw26L1vbWHwl0n8Y1_yTF-fiFNZNmIw20iYe7ToU",
+    "proxy_id": "b0547a7a-472b-4773-89d3-d1bf50199d9d"
+  },
+  "task": {
+    "scenario_id": 17,
+    "repeat_times": 1000,
+    "sim_start_time": 0,
+    "sim_duration": 600,
+    "time_step": 1000,
+    "speed_ratio": 100
+  },
+  "proxy": {
+    "data": {
+      "example_uav": {
+        "id": "7a06fc01-ca09-4d1a-95e8-63ebacc859ef",
+        "inputs": [
+          "azimuth"
+        ],
+        "outputs": [
+          "longitude",
+          "latitude",
+          "altitude",
+          "speed",
+          "azimuth"
+        ]
+      },
+      "example_sub": {
+        "id": "0436c1f9-be91-423d-bea8-571fbc9ae2df",
+        "inputs": [],
+        "outputs": [
+          "longitude",
+          "latitude",
+          "altitude",
+          "speed",
+          "azimuth"
+        ]
+      }
+    },
+    "routes": {
+      "localhost:10002": [
+        "example_uav",
+        "example_sub"
+      ]
+    },
+    "simenv_addr": "localhost:10001",
+    "sim_step_ratio": 5,
+    "sim_term_func": ""
+  }
+}
