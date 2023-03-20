@@ -45,5 +45,5 @@ python setup.py bdist_wheel
 Use below command to install:
 
 ```bash
-pip install dist/rlframe_sdk-0.0.1-py3-none-any.whl
+pip install dist/rlsdk-0.0.1-py3-none-any.whl
 ```
