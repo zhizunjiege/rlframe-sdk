@@ -75,7 +75,7 @@ class BFFClient:
         service_state_map = self.stub.QueryService(service_id_list)
         states = jf.MessageToDict(service_state_map, including_default_value_fields=True)['states']
         for id in states:
-            states[id] = bool(states[id]['state'])
+            states[id] = bool(states[id]['state'] == 'INITED')
         return states
 
     def get_simenv_config(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
@@ -88,13 +88,15 @@ class BFFClient:
 
     def set_simenv_config(self, configs: Dict[str, Dict[str, Any]]):
         for id in configs:
-            configs[id]['args'] = json.dumps(configs[id]['args'])
+            if not isinstance(configs[id]['args'], str):
+                configs[id]['args'] = json.dumps(configs[id]['args'])
         simenv_config_map = jf.ParseDict({'configs': configs}, bff_pb2.SimenvConfigMap())
         self.stub.SetSimenvConfig(simenv_config_map)
 
     def sim_control(self, cmds: Dict[str, Dict[str, Any]]):
         for id in cmds:
-            cmds[id]['params'] = json.dumps(cmds[id]['params'])
+            if not isinstance(cmds[id]['params'], str):
+                cmds[id]['params'] = json.dumps(cmds[id]['params'])
         sim_cmd_map = jf.ParseDict({'cmds': cmds}, bff_pb2.SimCmdMap())
         self.stub.SimControl(sim_cmd_map)
 
@@ -117,7 +119,8 @@ class BFFClient:
 
     def set_agent_config(self, configs: Dict[str, Dict[str, Any]]):
         for id in configs:
-            configs[id]['hypers'] = json.dumps(configs[id]['hypers'])
+            if not isinstance(configs[id]['hypers'], str):
+                configs[id]['hypers'] = json.dumps(configs[id]['hypers'])
         agent_config_map = jf.ParseDict({'configs': configs}, bff_pb2.AgentConfigMap())
         self.stub.SetAgentConfig(agent_config_map)
 
@@ -169,7 +172,8 @@ class BFFClient:
 
     def set_model_status(self, status: Dict[str, Dict[str, Any]]):
         for id in status:
-            status[id] = {'status': json.dumps(status[id])}
+            if not isinstance(status[id], str):
+                status[id] = {'status': json.dumps(status[id])}
         model_status_map = jf.ParseDict({'status': status}, bff_pb2.ModelStatusMap())
         self.stub.SetModelStatus(model_status_map)
 
@@ -200,18 +204,19 @@ class WebClient:
         self,
         table: str,
         columns: List[str] = [],
-        options: Dict[str, int] = {},
+        **options: Dict[str, int],
     ) -> List[Dict[str, Any]]:
         res = requests.get(f'{self.address}/{table}', params={'columns': columns, **options})
         res.raise_for_status()
         data = res.json()
         for row in data:
             for col in row:
-                col_type = self.tables[table][col]['type']
-                if col_type == 'BLOB':
-                    row[col] = self.b64str_to_bytes(row[col])
-                elif col_type == 'JSON':
-                    row[col] = json.loads(row[col])
+                if row[col] is not None:
+                    col_type = self.tables[table][col]['type']
+                    if col_type == 'BLOB':
+                        row[col] = self.b64str_to_bytes(row[col])
+                    elif col_type == 'JSON':
+                        row[col] = json.loads(row[col])
         return data
 
     def insert(
@@ -220,11 +225,12 @@ class WebClient:
         data: Dict[str, Any],
     ) -> int:
         for col in data:
-            col_type = self.tables[table][col]['type']
-            if col_type == 'BLOB':
-                data[col] = self.bytes_to_b64str(data[col])
-            elif col_type == 'JSON':
-                data[col] = json.dumps(data[col])
+            if data[col] is not None:
+                col_type = self.tables[table][col]['type']
+                if col_type == 'BLOB':
+                    data[col] = self.bytes_to_b64str(data[col])
+                elif col_type == 'JSON':
+                    data[col] = json.dumps(data[col])
         res = requests.post(f'{self.address}/{table}', json=data)
         res.raise_for_status()
         return res.json()['lastrowid']
@@ -236,11 +242,12 @@ class WebClient:
         data: Dict[str, Any],
     ) -> int:
         for col in data:
-            col_type = self.tables[table][col]['type']
-            if col_type == 'BLOB':
-                data[col] = self.bytes_to_b64str(data[col])
-            elif col_type == 'JSON':
-                data[col] = json.dumps(data[col])
+            if data[col] is not None:
+                col_type = self.tables[table][col]['type']
+                if col_type == 'BLOB':
+                    data[col] = self.bytes_to_b64str(data[col])
+                elif col_type == 'JSON':
+                    data[col] = json.dumps(data[col])
         res = requests.put(f'{self.address}/{table}/{id}', json=data)
         res.raise_for_status()
         return res.json()['rowcount']
@@ -254,8 +261,8 @@ class WebClient:
         res.raise_for_status()
         return res.json()['rowcount']
 
-    def bytes_to_b64str(data):
+    def bytes_to_b64str(self, data):
         return base64.b64encode(data).decode('utf-8')
 
-    def b64str_to_bytes(data):
+    def b64str_to_bytes(self, data):
         return base64.b64decode(data.encode('utf-8'))

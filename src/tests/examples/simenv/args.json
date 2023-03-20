@@ -1,7 +1,7 @@
 {
   "platform": {
-    "ctrl_addr": "192.168.199.170:50041",
-    "res_addr": "192.168.199.170:8001",
+    "ctrl_addr": "192.168.199.171:50041",
+    "res_addr": "192.168.199.171:8001",
     "x_token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhc2NvcGUiOiIiLCJleHAiOjQ4MTAxOTcxNTQsImlkZW50aXR5IjoxLCJuaWNlIjoiYWRtaW4iLCJvcmlnX2lhdCI6MTY1NjU2MTE1NCwicm9sZWlkIjoxLCJyb2xla2V5IjoiYWRtaW4iLCJyb2xlbmFtZSI6Iuezu-e7n-euoeeQhuWRmCJ9.BvjGw26L1vbWHwl0n8Y1_yTF-fiFNZNmIw20iYe7ToU",
     "proxy_id": "b0547a7a-472b-4773-89d3-d1bf50199d9d"
   },

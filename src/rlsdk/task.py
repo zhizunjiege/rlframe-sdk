@@ -16,7 +16,7 @@ class Task:
     def __init__(self, configs: Optional[Dict[str, Any]] = None):
         if configs is not None:
             jsonschema.validate(instance=configs, schema=task_schema)
-            for _, service in configs.items():
+            for service in configs.values():
                 type1 = service['infos']['type']
                 type2 = service['configs']['type']
                 instance = service['configs']['args' if type1 == 'simenv' else 'hypers']
@@ -39,17 +39,18 @@ class Task:
             msg = 'Task not configured.'
             raise RuntimeError(msg)
 
-        if reset:
-            self.bff_client.reset_service()
-            self.bff_client.reset_server()
-        else:
-            inited = False
+        if not reset:
             states = self.bff_client.query_service()
-            for _, state in states.items():
-                inited = inited or state
+            inited = False
+            for state in states.values():
+                if state:
+                    inited = True
+                    break
             if inited:
                 msg = 'Task already inited.'
                 raise RuntimeError(msg)
+        self.bff_client.reset_service()
+        self.bff_client.reset_server()
 
         self.simenvs, self.agents = [], []
         for id, srv in self.configs.items():
@@ -68,20 +69,21 @@ class Task:
         self.bff_addr = bff_addr
         self.bff_client = BFFClient(bff_addr)
 
-        inited = True
         states = self.bff_client.query_service()
-        for _, state in states.items():
-            inited = inited and state
+        inited = len(states) > 0
+        for state in states.values():
+            if not state:
+                inited = False
+                break
         if not inited:
             msg = 'Task not inited.'
             raise RuntimeError(msg)
 
-        if reset:
-            self.configs = None
-        else:
+        if not reset:
             if self.configs is not None:
                 msg = 'Task already configured.'
                 raise RuntimeError(msg)
+        self.configs = None
 
         simenv_configs = self.bff_client.get_simenv_config()
         agent_configs = self.bff_client.get_agent_config()
@@ -96,7 +98,7 @@ class Task:
         self.configs = {id: {'infos': infos[id], 'configs': configs[id]} for id in self.simenvs + self.agents}
 
         details = self.bff_client.sim_monitor(ids=self.simenvs)
-        for _, detail in details.items():
+        for detail in details.values():
             if detail['state'] != 'uninited':
                 self.inited = True
 
