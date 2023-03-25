@@ -14,10 +14,16 @@ from .protos import types_pb2
 
 class BFFClient:
 
-    def __init__(self, address: str):
+    def __init__(self, address: str, max_msg_len=256):
         self.address = address
         try:
-            self.channel = grpc.insecure_channel(address)
+            self.channel = grpc.insecure_channel(
+                address,
+                options=[
+                    ('grpc.max_send_message_length', max_msg_len * 1024 * 1024),
+                    ('grpc.max_receive_message_length', max_msg_len * 1024 * 1024),
+                ],
+            )
             grpc.channel_ready_future(self.channel).result(timeout=3)
         except (grpc.FutureTimeoutError, grpc.RpcError):
             self.channel.close()
