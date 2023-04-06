@@ -229,7 +229,7 @@ class WebClient:
         self,
         table: str,
         data: Dict[str, Any],
-    ) -> int:
+    ) -> Dict[str, int]:
         for col in data:
             if data[col] is not None:
                 col_type = self.tables[table][col]['type']
@@ -239,14 +239,13 @@ class WebClient:
                     data[col] = json.dumps(data[col])
         res = requests.post(f'{self.address}/{table}', json=data)
         res.raise_for_status()
-        return res.json()['lastrowid']
+        return res.json()
 
     def update(
         self,
         table: str,
-        id: int,
         data: Dict[str, Any],
-    ) -> int:
+    ) -> Dict[str, int]:
         for col in data:
             if data[col] is not None:
                 col_type = self.tables[table][col]['type']
@@ -254,18 +253,34 @@ class WebClient:
                     data[col] = self.bytes_to_b64str(data[col])
                 elif col_type == 'JSON':
                     data[col] = json.dumps(data[col])
-        res = requests.put(f'{self.address}/{table}/{id}', json=data)
+        res = requests.put(f'{self.address}/{table}', json=data)
         res.raise_for_status()
-        return res.json()['rowcount']
+        return res.json()
+
+    def replace(
+        self,
+        table: str,
+        data: Dict[str, Any],
+    ) -> Dict[str, int]:
+        if 'id' in data:
+            if data['id'] < 0:
+                rst = self.insert(table, data)
+                rst['rowcount'] = 1
+            else:
+                rst = self.update(table, data)
+                rst['lastrowid'] = data['id']
+            return rst
+        else:
+            raise ValueError('Id is required')
 
     def delete(
         self,
         table: str,
-        id: int,
-    ) -> int:
-        res = requests.delete(f'{self.address}/{table}/{id}')
+        ids: List[int],
+    ) -> Dict[str, int]:
+        res = requests.delete(f'{self.address}/{table}', json={'ids': ids})
         res.raise_for_status()
-        return res.json()['rowcount']
+        return res.json()
 
     def bytes_to_b64str(self, data):
         return base64.b64encode(data).decode('utf-8')

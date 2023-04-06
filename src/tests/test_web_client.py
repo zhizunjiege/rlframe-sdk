@@ -8,7 +8,7 @@ class WebClientTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.client = WebClient('localhost:8080')
+        cls.client = WebClient('localhost:5000')
         cls.task_dir = 'src/tests/examples'
 
     @classmethod
@@ -29,7 +29,8 @@ class WebClientTestCase(unittest.TestCase):
                 'type': 'CQSim',
                 'args': json.dumps(args),
             }
-        simenv_rowid = self.client.insert('simenv', data=simenv_data)
+        rst = self.client.insert('simenv', data=simenv_data)
+        simenv_rowid = rst['lastrowid']
         self.assertEqual(simenv_rowid, 1)
 
         with open(f'{self.task_dir}/agent/hypers.json', 'r') as f1, \
@@ -51,7 +52,8 @@ class WebClientTestCase(unittest.TestCase):
                 'rewfunc': reward_func,
                 'weights': b'Helloworld!',
             }
-        agent_rowid = self.client.insert('agent', data=agent_data)
+        rst = self.client.insert('agent', data=agent_data)
+        agent_rowid = rst['lastrowid']
         self.assertEqual(agent_rowid, 1)
 
         with open(f'{self.task_dir}/task.json', 'r') as f:
@@ -63,23 +65,30 @@ class WebClientTestCase(unittest.TestCase):
                 'description': 'task-test',
                 'services': json.dumps(services),
             }
-        task_rowid = self.client.insert('task', data=task_data)
+        rst = self.client.insert('task', data=task_data)
+        task_rowid = rst['lastrowid']
         self.assertEqual(task_rowid, 1)
 
     def test_02_update(self):
-        simenv_rowcount = self.client.update('simenv', id=1, data={
+        rst = self.client.update('simenv', data={
+            'id': 1,
             'params': '{}',
         })
+        simenv_rowcount = rst['rowcount']
         self.assertEqual(simenv_rowcount, 1)
 
-        agent_rowcount = self.client.update('agent', id=1, data={
+        rst = self.client.update('agent', data={
+            'id': 1,
             'status': '{}',
         })
+        agent_rowcount = rst['rowcount']
         self.assertEqual(agent_rowcount, 1)
 
-        task_rowcount = self.client.update('task', id=1, data={
+        rst = self.client.update('task', data={
+            'id': 1,
             'routes': '{}',
         })
+        task_rowcount = rst['rowcount']
         self.assertEqual(task_rowcount, 1)
 
     def test_03_select(self):
@@ -93,11 +102,14 @@ class WebClientTestCase(unittest.TestCase):
         self.assertEqual(len(data), 1)
 
     def test_04_delete(self):
-        simenv_rowcount = self.client.delete('simenv', id=1)
+        rst = self.client.delete('simenv', ids=[1])
+        simenv_rowcount = rst['rowcount']
         self.assertEqual(simenv_rowcount, 1)
 
-        agent_rowcount = self.client.delete('agent', id=1)
+        rst = self.client.delete('agent', ids=[1])
+        agent_rowcount = rst['rowcount']
         self.assertEqual(agent_rowcount, 1)
 
-        task_rowcount = self.client.delete('task', id=1)
+        rst = self.client.delete('task', ids=[1])
+        task_rowcount = rst['rowcount']
         self.assertEqual(task_rowcount, 1)
