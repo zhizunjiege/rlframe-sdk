@@ -190,7 +190,7 @@ class BFFClient:
             req.data[id].str_data = data[id][1]
             req.data[id].bin_data = data[id][2]
         res = self.stub.Call(req)
-        data = jf.MessageToDict(res, including_default_value_fields=True)['data']
+        data = jf.MessageToDict(res, preserving_proto_field_name=True, including_default_value_fields=True)['data']
         for id in data:
             data[id] = (data[id]['identity'], data[id]['str_data'], data[id]['bin_data'])
         return data

@@ -45,5 +45,11 @@ python setup.py bdist_wheel
 Use below command to install:
 
 ```bash
-pip install dist/rlsdk-0.0.1-py3-none-any.whl
+pip install dist/rlsdk-0.0.1-py3-none-any.whl 
+```
+
+or use below command when package is already existed:
+
+```bash
+pip install --upgrade --force-reinstall --no-deps dist/rlsdk-0.0.1-py3-none-any.whl 
 ```
