@@ -8,7 +8,7 @@
       "desc": "simenv service"
     },
     "configs": {
-      "type": "CQSim",
+      "type": "CQSIM",
       "args": {}
     }
   },

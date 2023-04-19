@@ -89,7 +89,7 @@ class BFFClientTestCase(unittest.TestCase):
         configs = {'simenv-main': {}}
         with open(f'{self.task_dir}/simenv/args.json', 'r') as f1, \
              open(f'{self.task_dir}/simenv/sim_term_func.cpp', 'r') as f2:
-            configs['simenv-main']['type'] = 'CQSim'
+            configs['simenv-main']['type'] = 'CQSIM'
             configs['simenv-main']['args'] = json.load(f1)
             configs['simenv-main']['args']['proxy']['sim_term_func'] = f2.read()
         self.client.set_simenv_config(configs=configs)

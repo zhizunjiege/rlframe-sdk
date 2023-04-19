@@ -26,7 +26,7 @@ class WebClientTestCase(unittest.TestCase):
             simenv_data = {
                 'name': 'simenv-test',
                 'description': 'simenv-test',
-                'type': 'CQSim',
+                'type': 'CQSIM',
                 'args': json.dumps(args),
             }
         rst = self.client.insert('simenv', data=simenv_data)
