@@ -151,7 +151,7 @@ class Task:
 
     def set_buffer(self, id: str, buffer: Any):
         self.__check_inited()
-        self.bff_client.set_model_buffer(buffer={id: buffer})
+        self.bff_client.set_model_buffer(buffers={id: buffer})
 
     def get_buffer(self, id: str) -> Any:
         self.__check_inited()
