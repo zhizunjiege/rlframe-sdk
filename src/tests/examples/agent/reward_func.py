@@ -1,3 +1,4 @@
+# Python 3.8.10
 from typing import Any, Dict, List, Union
 
 import numpy as np
@@ -12,9 +13,11 @@ def func(
     next_inputs: Union[np.ndarray, Dict[Union[str, int], np.ndarray]],
     terminated: bool,
     truncated: bool,
+    reward: Union[float, Dict[Union[str, int], float]],
 ) -> Union[float, Dict[Union[str, int], float]]:
     """Calculate the reward for the current step."""
+    global caches
     if terminated:
-        return 1.0
+        return reward + 1
     else:
-        return 0.0
+        return reward + 0

@@ -1,0 +1,6 @@
+{
+  "args.sim_term_func": {
+    "type": "text",
+    "path": "sim_term_func.cpp"
+  }
+}

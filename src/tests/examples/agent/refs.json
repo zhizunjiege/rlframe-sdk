@@ -1,0 +1,14 @@
+{
+  "sifunc": {
+    "type": "text",
+    "path": "states_inputs_func.py"
+  },
+  "oafunc": {
+    "type": "text",
+    "path": "outputs_actions_func.py"
+  },
+  "rewfunc": {
+    "type": "text",
+    "path": "reward_func.py"
+  }
+}

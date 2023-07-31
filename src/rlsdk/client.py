@@ -1,18 +1,17 @@
-import base64
 import json
 import pickle
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
 import grpc
-from google.protobuf import json_format as jf
 import numpy as np  # noqa: F401
-import requests
+
+from .configs import EngineConfigs, HookConfigs, ModelConfigs, Service, Agent, Simenv
 
 from .protos import bff_pb2, bff_pb2_grpc
 from .protos import types_pb2
 
 
-class BFFClient:
+class Client:
 
     def __init__(self, address: str, max_msg_len=256):
         self.address = address
@@ -37,118 +36,91 @@ class BFFClient:
     def reset_server(self):
         self.stub.ResetServer(types_pb2.CommonRequest())
 
-    def register_service(self, services: Dict[str, Dict[str, Union[str, int]]]):
-        service_info_map = jf.ParseDict({'services': services}, bff_pb2.ServiceInfoMap())
+    def register_service(self, services: Dict[str, Service]):
+        service_info_map = bff_pb2.ServiceInfoMap()
+        for id, service in services.items():
+            service_info_map.services[id].type = service.type
+            service_info_map.services[id].name = service.name
+            service_info_map.services[id].host = service.host
+            service_info_map.services[id].port = service.port
+            service_info_map.services[id].desc = service.desc
         self.stub.RegisterService(service_info_map)
 
     def unregister_service(self, ids: List[str] = []):
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        self.stub.UnRegisterService(service_id_list)
+        self.stub.UnRegisterService(bff_pb2.ServiceIdList(ids=ids))
 
-    def get_service_info(self, ids: List[str] = []) -> Dict[str, Dict[str, Union[str, int]]]:
+    def get_service_info(self, ids: List[str] = []) -> Dict[str, Service]:
         service_info_map = self.stub.GetServiceInfo(bff_pb2.ServiceIdList(ids=ids))
-        return jf.MessageToDict(service_info_map, including_default_value_fields=True)['services']
+        services = {}
+        for id, service in service_info_map.services.items():
+            services[id] = Service(
+                type=service.type,
+                name=service.name,
+                host=service.host,
+                port=service.port,
+                desc=service.desc,
+            )
+        return services
 
-    def set_service_info(self, services: Dict[str, Dict[str, Union[str, int]]]):
-        service_info_map = jf.ParseDict({'services': services}, bff_pb2.ServiceInfoMap())
+    def set_service_info(self, services: Dict[str, Service]):
+        service_info_map = bff_pb2.ServiceInfoMap()
+        for id, service in services.items():
+            service_info_map.services[id].type = service.type
+            service_info_map.services[id].name = service.name
+            service_info_map.services[id].host = service.host
+            service_info_map.services[id].port = service.port
+            service_info_map.services[id].desc = service.desc
         self.stub.SetServiceInfo(service_info_map)
 
-    def get_route_config(self) -> Dict[str, Dict[str, List[str]]]:
-        route_config = self.stub.GetRouteConfig(types_pb2.CommonRequest())
-        routes = jf.MessageToDict(route_config, including_default_value_fields=True)['routes']
-        for simenv in routes:
-            configs = routes[simenv]['configs']
-            for agent in configs:
-                configs[agent] = configs[agent]['models']
-            routes[simenv] = configs
-        return routes
-
-    def set_route_config(self, routes: Dict[str, Dict[str, List[str]]]):
-        for simenv in routes:
-            configs = routes[simenv]
-            for agent in configs:
-                configs[agent] = {'models': configs[agent]}
-            routes[simenv] = {'configs': routes[simenv]}
-        route_config = jf.ParseDict({'routes': routes}, bff_pb2.RouteConfig())
-        self.stub.SetRouteConfig(route_config)
-
     def reset_service(self, ids: List[str] = []):
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        self.stub.ResetService(service_id_list)
+        self.stub.ResetService(bff_pb2.ServiceIdList(ids=ids))
 
     def query_service(self, ids: List[str] = []) -> Dict[str, bool]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        service_state_map = self.stub.QueryService(service_id_list)
-        states = jf.MessageToDict(service_state_map, including_default_value_fields=True)['states']
-        for id in states:
-            states[id] = bool(states[id]['state'] == 'INITED')
-        return states
+        service_state_map = self.stub.QueryService(bff_pb2.ServiceIdList(ids=ids))
+        return {id: msg.state == types_pb2.ServiceState.State.INITED for id, msg in service_state_map.states.items()}
 
-    def get_simenv_config(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        simenv_config_map = self.stub.GetSimenvConfig(service_id_list)
-        configs = jf.MessageToDict(simenv_config_map, including_default_value_fields=True)['configs']
-        for id in configs:
-            configs[id]['args'] = json.loads(configs[id]['args'])
-        return configs
+    def get_agent_config(self, ids: List[str] = []) -> Dict[str, Agent]:
+        agent_config_map = self.stub.GetAgentConfig(bff_pb2.ServiceIdList(ids=ids))
+        agents = {}
+        for id, agent in agent_config_map.configs.items():
+            agents[id] = Agent(
+                model=ModelConfigs[agent.name](**json.loads(agent.hypers)),
+                training=agent.training,
+                sifunc=agent.sifunc,
+                oafunc=agent.oafunc,
+                rewfunc=agent.rewfunc,
+                hooks=[HookConfigs[hook.name](**json.loads(hook.args)) for hook in agent.hooks],
+            )
+        return agents
 
-    def set_simenv_config(self, configs: Dict[str, Dict[str, Any]]):
-        for id in configs:
-            if not isinstance(configs[id]['args'], str):
-                configs[id]['args'] = json.dumps(configs[id]['args'])
-        simenv_config_map = jf.ParseDict({'configs': configs}, bff_pb2.SimenvConfigMap())
-        self.stub.SetSimenvConfig(simenv_config_map)
-
-    def sim_control(self, cmds: Dict[str, Dict[str, Any]]):
-        for id in cmds:
-            if not isinstance(cmds[id]['params'], str):
-                cmds[id]['params'] = json.dumps(cmds[id]['params'])
-        sim_cmd_map = jf.ParseDict({'cmds': cmds}, bff_pb2.SimCmdMap())
-        self.stub.SimControl(sim_cmd_map)
-
-    def sim_monitor(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        sim_info_map = self.stub.SimMonitor(service_id_list)
-        infos = jf.MessageToDict(sim_info_map, including_default_value_fields=True)['infos']
-        for id in infos:
-            infos[id]['data'] = json.loads(infos[id]['data'])
-            infos[id]['logs'] = json.loads(infos[id]['logs'])
-        return infos
-
-    def get_agent_config(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        agent_config_map = self.stub.GetAgentConfig(service_id_list)
-        configs = jf.MessageToDict(agent_config_map, including_default_value_fields=True)['configs']
-        for id in configs:
-            configs[id]['hypers'] = json.loads(configs[id]['hypers'])
-        return configs
-
-    def set_agent_config(self, configs: Dict[str, Dict[str, Any]]):
-        for id in configs:
-            if not isinstance(configs[id]['hypers'], str):
-                configs[id]['hypers'] = json.dumps(configs[id]['hypers'])
-        agent_config_map = jf.ParseDict({'configs': configs}, bff_pb2.AgentConfigMap())
+    def set_agent_config(self, agents: Dict[str, Agent]):
+        agent_config_map = bff_pb2.AgentConfigMap()
+        for id, agent in agents.items():
+            agent_config_map.configs[id].training = agent.training
+            agent_config_map.configs[id].name = agent.model.name
+            agent_config_map.configs[id].hypers = json.dumps(agent.model.dump())
+            agent_config_map.configs[id].sifunc = agent.sifunc
+            agent_config_map.configs[id].oafunc = agent.oafunc
+            agent_config_map.configs[id].rewfunc = agent.rewfunc
+            for hook in agent.hooks:
+                pointer = agent_config_map.configs[id].hooks.add()
+                pointer.name = hook.name
+                pointer.args = json.dumps(hook.dump())
         self.stub.SetAgentConfig(agent_config_map)
 
     def get_agent_mode(self, ids: List[str] = []) -> Dict[str, bool]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        agent_mode_map = self.stub.GetAgentMode(service_id_list)
-        modes = jf.MessageToDict(agent_mode_map, including_default_value_fields=True)['modes']
-        for id in modes:
-            modes[id] = bool(modes[id]['training'])
-        return modes
+        agent_mode_map = self.stub.GetAgentMode(bff_pb2.ServiceIdList(ids=ids))
+        return {id: bool(msg.training) for id, msg in agent_mode_map.modes.items()}
 
     def set_agent_mode(self, modes: Dict[str, bool]):
+        agent_mode_map = bff_pb2.AgentModeMap()
         for id in modes:
-            modes[id] = {'training': modes[id]}
-        agent_mode_map = jf.ParseDict({'modes': modes}, bff_pb2.AgentModeMap())
+            agent_mode_map.modes[id].training = modes[id]
         self.stub.SetAgentMode(agent_mode_map)
 
     def get_model_weights(self, ids: List[str] = []) -> Dict[str, Any]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        model_weights_map = self.stub.GetModelWeights(service_id_list)
-        weights = {id: pickle.loads(msg.weights) for id, msg in model_weights_map.weights.items()}
-        return weights
+        model_weights_map = self.stub.GetModelWeights(bff_pb2.ServiceIdList(ids=ids))
+        return {id: pickle.loads(msg.weights) for id, msg in model_weights_map.weights.items()}
 
     def set_model_weights(self, weights: Dict[str, Any]):
         model_weights_map = bff_pb2.ModelWeightsMap()
@@ -157,10 +129,8 @@ class BFFClient:
         self.stub.SetModelWeights(model_weights_map)
 
     def get_model_buffer(self, ids: List[str] = []) -> Dict[str, Any]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        model_buffer_map = self.stub.GetModelBuffer(service_id_list)
-        buffers = {id: pickle.loads(msg.buffer) for id, msg in model_buffer_map.buffers.items()}
-        return buffers
+        model_buffer_map = self.stub.GetModelBuffer(bff_pb2.ServiceIdList(ids=ids))
+        return {id: pickle.loads(msg.buffer) for id, msg in model_buffer_map.buffers.items()}
 
     def set_model_buffer(self, buffers: Dict[str, Any]):
         model_buffer_map = bff_pb2.ModelBufferMap()
@@ -169,121 +139,50 @@ class BFFClient:
         self.stub.SetModelBuffer(model_buffer_map)
 
     def get_model_status(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
-        service_id_list = jf.ParseDict({'ids': ids}, bff_pb2.ServiceIdList())
-        model_status_map = self.stub.GetModelStatus(service_id_list)
-        status = jf.MessageToDict(model_status_map, including_default_value_fields=True)['status']
-        for id in status:
-            status[id] = json.loads(status[id]['status'])
-        return status
+        model_status_map = self.stub.GetModelStatus(bff_pb2.ServiceIdList(ids=ids))
+        return {id: json.loads(msg.status) for id, msg in model_status_map.status.items()}
 
     def set_model_status(self, status: Dict[str, Dict[str, Any]]):
+        model_status_map = bff_pb2.ModelStatusMap()
         for id in status:
-            if not isinstance(status[id], str):
-                status[id] = {'status': json.dumps(status[id])}
-        model_status_map = jf.ParseDict({'status': status}, bff_pb2.ModelStatusMap())
+            model_status_map.status[id].status = json.dumps(status[id])
         self.stub.SetModelStatus(model_status_map)
+
+    def get_simenv_config(self, ids: List[str] = []) -> Dict[str, Simenv]:
+        simenv_config_map = self.stub.GetSimenvConfig(bff_pb2.ServiceIdList(ids=ids))
+        simenvs = {}
+        for id, simenv in simenv_config_map.configs.items():
+            simenvs[id] = Simenv(engine=EngineConfigs[simenv.name](**json.loads(simenv.args)))
+        return simenvs
+
+    def set_simenv_config(self, simenvs: Dict[str, Simenv]):
+        simenv_config_map = bff_pb2.SimenvConfigMap()
+        for id, simenv in simenvs.items():
+            simenv_config_map.configs[id].name = simenv.engine.name
+            simenv_config_map.configs[id].args = json.dumps(simenv.engine.dump())
+        self.stub.SetSimenvConfig(simenv_config_map)
+
+    def sim_control(self, cmds: Dict[str, str]):
+        sim_cmd_map = bff_pb2.SimCmdMap()
+        for id in cmds:
+            sim_cmd_map.cmds[id].type = cmds[id]
+        self.stub.SimControl(sim_cmd_map)
+
+    def sim_monitor(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
+        sim_info_map = self.stub.SimMonitor(bff_pb2.ServiceIdList(ids=ids))
+        return {
+            id: {
+                'state': msg.state,
+                'data': json.loads(msg.data),
+                'logs': json.loads(msg.logs),
+            } for id, msg in sim_info_map.infos.items()
+        }
 
     def call(self, data: Dict[str, Tuple[str, str, bytes]]) -> Dict[str, Tuple[str, str, bytes]]:
         req = bff_pb2.CallDataMap()
         for id in data:
-            req.data[id].identity = data[id][0]
-            req.data[id].str_data = data[id][1]
-            req.data[id].bin_data = data[id][2]
+            req.data[id].name = data[id][0]
+            req.data[id].dstr = data[id][1]
+            req.data[id].dbin = data[id][2]
         res = self.stub.Call(req)
-        data = jf.MessageToDict(res, preserving_proto_field_name=True, including_default_value_fields=True)['data']
-        for id in data:
-            data[id] = (data[id]['identity'], data[id]['str_data'], data[id]['bin_data'])
-        return data
-
-
-class WebClient:
-
-    def __init__(self, address: str):
-        self.address = f'http://{address}/api/db'
-
-        try:
-            self.tables = requests.get(self.address, timeout=3).json()
-        except requests.RequestException:
-            raise ConnectionError(f'Connection to {address} timed out, please check the address again.')
-
-    def select(
-        self,
-        table: str,
-        columns: List[str] = [],
-        **options: Dict[str, int],
-    ) -> List[Dict[str, Any]]:
-        res = requests.get(f'{self.address}/{table}', params={'columns': columns, **options})
-        res.raise_for_status()
-        data = res.json()
-        for row in data:
-            for col in row:
-                if row[col] is not None:
-                    col_type = self.tables[table][col]['type']
-                    if col_type == 'BLOB':
-                        row[col] = self.b64str_to_bytes(row[col])
-                    elif col_type == 'JSON':
-                        row[col] = json.loads(row[col])
-        return data
-
-    def insert(
-        self,
-        table: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, int]:
-        for col in data:
-            if data[col] is not None:
-                col_type = self.tables[table][col]['type']
-                if col_type == 'BLOB':
-                    data[col] = self.bytes_to_b64str(data[col])
-                elif col_type == 'JSON':
-                    data[col] = json.dumps(data[col])
-        res = requests.post(f'{self.address}/{table}', json=data)
-        res.raise_for_status()
-        return res.json()
-
-    def update(
-        self,
-        table: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, int]:
-        for col in data:
-            if data[col] is not None:
-                col_type = self.tables[table][col]['type']
-                if col_type == 'BLOB':
-                    data[col] = self.bytes_to_b64str(data[col])
-                elif col_type == 'JSON':
-                    data[col] = json.dumps(data[col])
-        res = requests.put(f'{self.address}/{table}', json=data)
-        res.raise_for_status()
-        return res.json()
-
-    def replace(
-        self,
-        table: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, int]:
-        if 'id' in data:
-            if data['id'] < 0:
-                rst = self.insert(table, data)
-                rst['rowcount'] = 1
-            else:
-                rst = self.update(table, data)
-                rst['lastrowid'] = data['id']
-            return rst
-        else:
-            raise ValueError('Id is required')
-
-    def delete(
-        self,
-        table: str,
-        ids: List[int],
-    ) -> Dict[str, int]:
-        res = requests.delete(f'{self.address}/{table}', json={'ids': ids})
-        res.raise_for_status()
-        return res.json()
-
-    def bytes_to_b64str(self, data):
-        return base64.b64encode(data).decode('utf-8')
-
-    def b64str_to_bytes(self, data):
-        return base64.b64decode(data.encode('utf-8'))
+        return {id: (msg.name, msg.dstr, msg.dbin) for id, msg in res.data.items()}

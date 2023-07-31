@@ -1,3 +1,4 @@
+# Python 3.8.10
 import math
 from typing import Any, Dict, List, Union
 
@@ -6,6 +7,7 @@ import numpy as np
 
 def func(states: Dict[str, List[Dict[str, Any]]]) -> Union[np.ndarray, Dict[Union[str, int], np.ndarray]]:
     """Convert `states` to `inputs` for model inferecing."""
+    global caches
     uav, sub = states['example_uav'][0], states['example_sub'][0]
     return np.array([
         (uav['longitude'] - 122.25) / 0.25,

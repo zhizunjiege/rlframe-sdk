@@ -28,12 +28,6 @@ class BFFStub(object):
         self.SetServiceInfo = channel.unary_unary('/game.bff.BFF/SetServiceInfo',
                                                   request_serializer=bff__pb2.ServiceInfoMap.SerializeToString,
                                                   response_deserializer=types__pb2.CommonResponse.FromString)
-        self.GetRouteConfig = channel.unary_unary('/game.bff.BFF/GetRouteConfig',
-                                                  request_serializer=types__pb2.CommonRequest.SerializeToString,
-                                                  response_deserializer=bff__pb2.RouteConfig.FromString)
-        self.SetRouteConfig = channel.unary_unary('/game.bff.BFF/SetRouteConfig',
-                                                  request_serializer=bff__pb2.RouteConfig.SerializeToString,
-                                                  response_deserializer=types__pb2.CommonResponse.FromString)
         self.ResetService = channel.unary_unary('/game.bff.BFF/ResetService',
                                                 request_serializer=bff__pb2.ServiceIdList.SerializeToString,
                                                 response_deserializer=types__pb2.CommonResponse.FromString)
@@ -120,20 +114,6 @@ class BFFServicer(object):
 
     def SetServiceInfo(self, request, context):
         """set services info
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetRouteConfig(self, request, context):
-        """get route config
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def SetRouteConfig(self, request, context):
-        """set route config
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -280,14 +260,6 @@ def add_BFFServicer_to_server(servicer, server):
         'SetServiceInfo':
             grpc.unary_unary_rpc_method_handler(servicer.SetServiceInfo,
                                                 request_deserializer=bff__pb2.ServiceInfoMap.FromString,
-                                                response_serializer=types__pb2.CommonResponse.SerializeToString),
-        'GetRouteConfig':
-            grpc.unary_unary_rpc_method_handler(servicer.GetRouteConfig,
-                                                request_deserializer=types__pb2.CommonRequest.FromString,
-                                                response_serializer=bff__pb2.RouteConfig.SerializeToString),
-        'SetRouteConfig':
-            grpc.unary_unary_rpc_method_handler(servicer.SetRouteConfig,
-                                                request_deserializer=bff__pb2.RouteConfig.FromString,
                                                 response_serializer=types__pb2.CommonResponse.SerializeToString),
         'ResetService':
             grpc.unary_unary_rpc_method_handler(servicer.ResetService,
@@ -442,38 +414,6 @@ class BFF(object):
                        metadata=None):
         return grpc.experimental.unary_unary(request, target, '/game.bff.BFF/SetServiceInfo',
                                              bff__pb2.ServiceInfoMap.SerializeToString, types__pb2.CommonResponse.FromString,
-                                             options, channel_credentials, insecure, call_credentials, compression,
-                                             wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def GetRouteConfig(request,
-                       target,
-                       options=(),
-                       channel_credentials=None,
-                       call_credentials=None,
-                       insecure=False,
-                       compression=None,
-                       wait_for_ready=None,
-                       timeout=None,
-                       metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/game.bff.BFF/GetRouteConfig',
-                                             types__pb2.CommonRequest.SerializeToString, bff__pb2.RouteConfig.FromString,
-                                             options, channel_credentials, insecure, call_credentials, compression,
-                                             wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def SetRouteConfig(request,
-                       target,
-                       options=(),
-                       channel_credentials=None,
-                       call_credentials=None,
-                       insecure=False,
-                       compression=None,
-                       wait_for_ready=None,
-                       timeout=None,
-                       metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/game.bff.BFF/SetRouteConfig',
-                                             bff__pb2.RouteConfig.SerializeToString, types__pb2.CommonResponse.FromString,
                                              options, channel_credentials, insecure, call_credentials, compression,
                                              wait_for_ready, timeout, metadata)
 

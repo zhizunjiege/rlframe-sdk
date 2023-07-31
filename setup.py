@@ -3,7 +3,7 @@ from setuptools import find_namespace_packages
 
 setup(
     name='rlsdk',
-    version='0.0.1',
+    version='1.0.0',
     description='Software Development Kit for RLFrame',
     author='zhizunjiege',
     author_email='cjason@buaa.edu.cn',
@@ -16,12 +16,7 @@ setup(
         'grpcio>=1.47.0',
         'grpcio-tools>=1.47.0',
         'numpy>=1.23.2',
-        'requests>=2.28.1',
     ],
     packages=find_namespace_packages(where='src', exclude=['tests']),
     package_dir={'': 'src'},
-    include_package_data=True,
-    package_data={
-        'rlsdk.schemas': ['**/*.json']
-    },
 )

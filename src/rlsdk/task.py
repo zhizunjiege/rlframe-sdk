@@ -1,171 +1,182 @@
 import json
-import pathlib
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-import jsonschema
-
-from .client import BFFClient
-
-schema_dir = pathlib.Path(__file__).parent / 'schemas'
-with open(schema_dir / 'task.json', 'r') as f:
-    task_schema = json.load(f)
+from .configs import Service, Agent, Simenv
+from .client import Client
 
 
 class Task:
 
-    def __init__(self, configs: Optional[Dict[str, Any]] = None):
-        if configs is not None:
-            jsonschema.validate(instance=configs, schema=task_schema)
-            for service in configs.values():
-                type1 = service['infos']['type']
-                type2 = service['configs']['type']
-                instance = service['configs']['args' if type1 == 'simenv' else 'hypers']
-                schema_file = schema_dir / ('engines' if type1 == 'simenv' else 'models') / f'{type2}.json'
-                if schema_file.exists():
-                    with open(schema_file, 'r') as f:
-                        schema = json.load(f)
-                    jsonschema.validate(instance=instance, schema=schema)
+    @classmethod
+    def from_files(cls, path: str):
+        with open(f'{path}/services.json', 'r') as f:
+            configs = json.load(f)
+        services, agents, simenvs = {}, {}, {}
+        for id in configs:
+            services[id] = Service(**configs[id])
+            if services[id].type == 'agent':
+                agents[id] = Agent.from_files(f'{path}/{id}')
+            elif services[id].type == 'simenv':
+                simenvs[id] = Simenv.from_files(f'{path}/{id}')
+        return cls(services, agents, simenvs)
 
-        self.configs = configs
+    def __init__(
+        self,
+        services: Dict[str, Service] = {},
+        agents: Dict[str, Agent] = {},
+        simenvs: Dict[str, Simenv] = {},
+    ):
+        for id in services:
+            if id not in agents and id not in simenvs:
+                raise ValueError(f'Service {id} not configured in agents or simenvs.')
+
+        self.services = services
+        self.agents = agents
+        self.simenvs = simenvs
+
+        self.address = ''
+        self.client = None
+
         self.inited = False
 
-        self.simenvs, self.agents = [], []
+    def push(self, address: str, reset=False):
+        self.address = address
+        self.client = Client(address)
 
-    def push(self, bff_addr: str, reset=False):
-        self.bff_addr = bff_addr
-        self.bff_client = BFFClient(bff_addr)
+        if len(self.services) == 0 or len(self.agents) == 0 and len(self.simenvs) == 0:
+            raise RuntimeError('Task not configured.')
 
-        if self.configs is None:
-            msg = 'Task not configured.'
-            raise RuntimeError(msg)
+        to_register = {}
+        services = self.client.get_service_info()
+        for id in self.services:
+            if id not in services:
+                to_register[id] = self.services[id]
+        if len(to_register) > 0:
+            self.client.register_service(to_register)
 
-        if not reset:
-            states = self.bff_client.query_service()
-            inited = False
-            for state in states.values():
-                if state:
-                    inited = True
-                    break
-            if inited:
-                msg = 'Task already inited.'
-                raise RuntimeError(msg)
-        self.bff_client.reset_service()
-        self.bff_client.reset_server()
+        if reset:
+            self.client.reset_service(list(self.services.keys()))
+        else:
+            states = self.client.query_service(list(self.services.keys()))
+            for id in states:
+                if states[id]:
+                    raise RuntimeError(f'Service {id} already inited.')
 
-        self.simenvs, self.agents = [], []
-        for id, srv in self.configs.items():
-            if srv['infos']['type'] == 'simenv':
-                self.simenvs.append(id)
-            elif srv['infos']['type'] == 'agent':
-                self.agents.append(id)
-        self.bff_client.register_service({id: srv['infos'] for id, srv in self.configs.items()})
-        self.bff_client.set_simenv_config(configs={id: self.configs[id]['configs'] for id in self.simenvs})
-        self.bff_client.set_agent_config(configs={id: self.configs[id]['configs'] for id in self.agents})
+        if len(self.agents) > 0:
+            self.client.set_agent_config(self.agents)
+        if len(self.simenvs) > 0:
+            self.client.set_simenv_config(self.simenvs)
 
-        self.bff_client.sim_control(cmds={id: {'type': 'init', 'params': {}} for id in self.simenvs})
         self.inited = True
 
-    def pull(self, bff_addr: str, reset=False):
-        self.bff_addr = bff_addr
-        self.bff_client = BFFClient(bff_addr)
+    def pull(self, address: str, reset=False):
+        self.address = address
+        self.client = Client(address)
 
-        states = self.bff_client.query_service()
-        inited = len(states) > 0
-        for state in states.values():
-            if not state:
-                inited = False
-                break
-        if not inited:
-            msg = 'Task not inited.'
-            raise RuntimeError(msg)
+        registered = {}
+        states = self.client.query_service()
+        for id in states:
+            if states[id]:
+                registered[id] = states[id]
+        if len(registered) == 0:
+            raise RuntimeError('Task not inited.')
+        else:
+            registered = self.client.get_service_info(list(registered.keys()))
 
-        if not reset:
-            if self.configs is not None:
-                msg = 'Task already configured.'
-                raise RuntimeError(msg)
-        self.configs = None
+        if reset:
+            self.services = {}
+            self.agents = {}
+            self.simenvs = {}
+        else:
+            if len(self.services) > 0 or len(self.agents) > 0 or len(self.simenvs) > 0:
+                raise RuntimeError('Task already configured.')
 
-        simenv_configs = self.bff_client.get_simenv_config()
-        agent_configs = self.bff_client.get_agent_config()
-        infos = self.bff_client.get_service_info()
-        configs = {**simenv_configs, **agent_configs}
-        self.simenvs, self.agents = [], []
-        for id, srv in infos.items():
-            if srv['type'] == 'simenv':
-                self.simenvs.append(id)
-            elif srv['type'] == 'agent':
-                self.agents.append(id)
-        self.configs = {id: {'infos': infos[id], 'configs': configs[id]} for id in self.simenvs + self.agents}
+        self.services = registered
+        agent_ids = [id for id in registered if registered[id].type == 'agent']
+        if len(agent_ids) > 0:
+            self.agents = self.client.get_agent_config(agent_ids)
+        simenv_ids = [id for id in registered if registered[id].type == 'simenv']
+        if len(simenv_ids) > 0:
+            self.simenvs = self.client.get_simenv_config(simenv_ids)
 
-        details = self.bff_client.sim_monitor(ids=self.simenvs)
-        for detail in details.values():
-            if detail['state'] != 'uninited':
-                self.inited = True
+        self.inited = True
 
     def details(self) -> Dict[str, Dict[str, Any]]:
         self.__check_inited()
         details = {}
-        states = self.bff_client.query_service()
-        for id in self.simenvs:
-            details[id] = {'type': 'simenv', 'inited': states[id]}
-            if states[id]:
-                details[id]['infos'] = self.bff_client.sim_monitor(ids=[id])[id]
-        for id in self.agents:
-            details[id] = {'type': 'agent', 'inited': states[id]}
-            if states[id]:
-                details[id]['status'] = self.bff_client.get_model_status(ids=[id])[id]
+        states = self.client.query_service(list(self.services.keys()))
+        for id in states:
+            details[id] = {'type': '', 'inited': states[id]}
+        if len(self.agents) > 0:
+            agents = self.client.get_model_status(list(self.agents.keys()))
+            for id in agents:
+                details[id]['type'] = 'agent'
+                details[id]['status'] = agents[id]
+        if len(self.simenvs) > 0:
+            simenvs = self.client.sim_monitor(list(self.simenvs.keys()))
+            for id in simenvs:
+                details[id]['type'] = 'simenv'
+                details[id]['infos'] = simenvs[id]
         return details
 
-    def start(self):
+    def switch_training(self) -> bool:
         self.__check_inited()
-        self.bff_client.sim_control(cmds={id: {'type': 'start', 'params': {}} for id in self.simenvs})
-
-    def pause(self):
-        self.__check_inited()
-        self.bff_client.sim_control(cmds={id: {'type': 'pause', 'params': {}} for id in self.simenvs})
-
-    def resume(self):
-        self.__check_inited()
-        self.bff_client.sim_control(cmds={id: {'type': 'resume', 'params': {}} for id in self.simenvs})
-
-    def stop(self):
-        self.__check_inited()
-        self.bff_client.sim_control(cmds={id: {'type': 'stop', 'params': {}} for id in self.simenvs})
-
-    def monitor(self) -> Dict[str, Dict[str, Any]]:
-        self.__check_inited()
-        return self.bff_client.sim_monitor()
-
-    def switch_training(self, mode: bool):
-        self.__check_inited()
-        modes = {id: mode for id in self.agents if self.configs[id]['configs']['training']}
-        self.bff_client.set_agent_mode(modes=modes)
+        modes = self.client.get_agent_mode(list(self.agents.keys()))
+        modes = {id: not modes[id] for id in modes if self.agents[id].training}
+        self.client.set_agent_mode(modes)
+        return all(modes.values())
 
     def set_weights(self, id: str, weights: Any):
         self.__check_inited()
-        self.bff_client.set_model_weights(weights={id: weights})
+        self.client.set_model_weights({id: weights})
 
     def get_weights(self, id: str) -> Any:
         self.__check_inited()
-        return self.bff_client.get_model_weights(ids=[id])[id]
+        return self.client.get_model_weights([id])[id]
 
     def set_buffer(self, id: str, buffer: Any):
         self.__check_inited()
-        self.bff_client.set_model_buffer(buffers={id: buffer})
+        self.client.set_model_buffer({id: buffer})
 
     def get_buffer(self, id: str) -> Any:
         self.__check_inited()
-        return self.bff_client.get_model_buffer(ids=[id])[id]
+        return self.client.get_model_buffer([id])[id]
 
     def set_status(self, id: str, status: Dict[str, Any]):
         self.__check_inited()
-        self.bff_client.set_model_status(status={id: status})
+        self.client.set_model_status({id: status})
 
     def get_status(self, id: str) -> Dict[str, Any]:
         self.__check_inited()
-        return self.bff_client.get_model_status(ids=[id])[id]
+        return self.client.get_model_status([id])[id]
+
+    def init(self):
+        self.__check_inited()
+        self.client.sim_control(self.__gen_cmds('init'))
+
+    def start(self):
+        self.__check_inited()
+        self.client.sim_control(self.__gen_cmds('start'))
+
+    def pause(self):
+        self.__check_inited()
+        self.client.sim_control(self.__gen_cmds('pause'))
+
+    def resume(self):
+        self.__check_inited()
+        self.client.sim_control(self.__gen_cmds('resume'))
+
+    def stop(self):
+        self.__check_inited()
+        self.client.sim_control(self.__gen_cmds('stop'))
+
+    def monitor(self) -> Dict[str, Dict[str, Any]]:
+        self.__check_inited()
+        return self.client.sim_monitor()
+
+    def __gen_cmds(self, cmd):
+        return {id: cmd for id in self.simenvs}
 
     def __check_inited(self):
         if not self.inited:
-            msg = 'Task not inited, call push() or pull() first.'
-            raise RuntimeError(msg)
+            raise RuntimeError('Task not inited, call push() or pull() first.')

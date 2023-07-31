@@ -2,54 +2,64 @@
 
 ## Protos
 
-Use below command to build protos:
+Use below command to generate protos:
 
 For Linux:
 
 ```bash
-./tools/build-protos.sh
+./tools/gen-protos.sh
 ```
 
 For Windows:
 
-```bat
-./tools/build-protos.bat
+```powershell
+./tools/gen-protos.bat
 ```
 
 ## Tests
 
-Use below command to run tests:
+Use below command to run unittests:
 
 For Linux:
 
 ```bash
-./tools/unittests.sh
+./tools/run-tests.sh
 ```
 
 For Windows:
 
-```bat
-./tools/unittests.bat
+```powershell
+./tools/run-tests.bat
 ```
 
-## Build
+## Build & Install
 
-Use below command to build:
+Use below command to build and install:
+
+For Linux:
 
 ```bash
-python setup.py bdist_wheel
+./tools/build-install.sh
 ```
 
-## Install
+For Windows:
 
-Use below command to install:
-
-```bash
-pip install dist/rlsdk-0.0.1-py3-none-any.whl 
+```powershell
+./tools/build-install.bat
 ```
 
-or use below command when package is already existed:
+## Build & Upgrade
+
+Use below command to build and upgrade:
+
+For Linux:
 
 ```bash
-pip install --upgrade --force-reinstall --no-deps dist/rlsdk-0.0.1-py3-none-any.whl 
+./tools/build-upgrade.sh
+```
+
+For Windows:
+
+```powershell
+./tools/build-upgrade.bat
 ```
