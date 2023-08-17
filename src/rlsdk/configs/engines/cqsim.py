@@ -80,8 +80,8 @@ class CQSIM(ConfigBase):
         self.speed_ratio = speed_ratio
 
         for name, model in data.items():
-            if 'id' not in model:
-                raise ValueError('model id must be specified')
+            if 'modelid' not in model:
+                raise ValueError('modelid must be specified')
             if 'inputs' not in model:
                 raise ValueError('model inputs must be specified')
             if 'outputs' not in model:
