@@ -22,8 +22,6 @@ class Logging(ConfigBase):
             terminal: Whether to log to terminal.
             tensorboard: Whether to log to tensorboard.
         """
-        super().__init__()
-
         loglvl = loglvl.upper()
         if loglvl not in self.levels:
             raise ValueError(f'loglvl must be one of {", ".join(self.levels)}.')

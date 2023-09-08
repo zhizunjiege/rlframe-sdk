@@ -1,5 +1,5 @@
 from .dqn import DQN
 
-ModelConfigs = {model.name: model for model in [
+ModelConfigs = {model.__name__: model for model in [
     DQN,
 ]}

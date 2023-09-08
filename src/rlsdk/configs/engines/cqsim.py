@@ -48,8 +48,6 @@ class CQSIM(ConfigBase):
             sim_step_ratio: number of steps to take once request for decision.
             sim_term_func: termination function written in c++.
         """
-        super().__init__()
-
         if not proxy_id:
             raise ValueError('proxy_id must be specified')
 

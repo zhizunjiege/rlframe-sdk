@@ -16,8 +16,6 @@ class AutoSave(ConfigBase):
             per_steps: Save weights every per_steps steps.
             per_episodes: Save weights every per_episodes episodes.
         """
-        super().__init__()
-
         if per_steps <= 0:
             raise ValueError('per_steps must be positive.')
         if per_episodes <= 0:

@@ -1,6 +1,6 @@
-import json
+from typing import Union
 
-from .base import ConfigBase, ServiceBase
+from .base import AnyDict, ConfigBase, ServiceBase
 
 from .engines import EngineConfigs
 
@@ -10,26 +10,21 @@ class Simenv(ServiceBase):
 
     def __init__(
         self,
-        engine: ConfigBase,
+        name: str,
+        args: Union[ConfigBase, AnyDict],
     ):
         """Init config.
 
         Args:
-            engine: engine config.
+            name: engine name.
+            args: engine args.
         """
-        self.engine = engine
-
-    @classmethod
-    def from_files(cls, path: str):
-        """Create config from files.
-
-        Args:
-            path: path to config files.
-        """
-        with open(f'{path}/configs.json', 'r') as f:
-            configs = json.load(f)
-
-        super().parse_refs(configs, path)
-
-        engine = EngineConfigs[configs['name']](**configs['args'])
-        return cls(engine=engine)
+        self.name = name
+        if isinstance(args, ConfigBase):
+            self.args = args.dump()
+        else:
+            if name in EngineConfigs:
+                self.args = EngineConfigs[name](**args).dump()
+            else:
+                print(f'Warning: engine {name} not found, using raw args.')
+                self.args = args
