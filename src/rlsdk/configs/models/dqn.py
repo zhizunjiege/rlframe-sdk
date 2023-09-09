@@ -50,8 +50,6 @@ class DQN(ConfigBase):
             dtype: Data type of model.
             seed: Seed for random number generators.
         """
-        super().__init__()
-
         if obs_dim < 1:
             raise ValueError('obs_dim must be greater than 0')
         if act_num < 2:

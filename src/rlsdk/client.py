@@ -1,11 +1,14 @@
 import json
+import pathlib
 import pickle
-from typing import Any, Dict, List, Tuple
+import shutil
+import tempfile
+from typing import Dict, List, Tuple
 
 import grpc
 import numpy as np  # noqa: F401
 
-from .configs import EngineConfigs, HookConfigs, ModelConfigs, Service, Agent, Simenv
+from .configs import AnyDict, Service, Agent, Simenv
 
 from .protos import bff_pb2, bff_pb2_grpc
 from .protos import types_pb2
@@ -84,28 +87,32 @@ class Client:
         agents = {}
         for id, agent in agent_config_map.configs.items():
             agents[id] = Agent(
-                model=ModelConfigs[agent.name](**json.loads(agent.hypers)),
+                name=agent.name,
+                hypers=json.loads(agent.hypers),
                 training=agent.training,
                 sifunc=agent.sifunc,
                 oafunc=agent.oafunc,
                 rewfunc=agent.rewfunc,
-                hooks=[HookConfigs[hook.name](**json.loads(hook.args)) for hook in agent.hooks],
+                hooks=[{
+                    'name': hook.name,
+                    'args': json.loads(hook.args)
+                } for hook in agent.hooks],
             )
         return agents
 
     def set_agent_config(self, agents: Dict[str, Agent]):
         agent_config_map = bff_pb2.AgentConfigMap()
         for id, agent in agents.items():
+            agent_config_map.configs[id].name = agent.name
+            agent_config_map.configs[id].hypers = json.dumps(agent.hypers)
             agent_config_map.configs[id].training = agent.training
-            agent_config_map.configs[id].name = agent.model.name
-            agent_config_map.configs[id].hypers = json.dumps(agent.model.dump())
             agent_config_map.configs[id].sifunc = agent.sifunc
             agent_config_map.configs[id].oafunc = agent.oafunc
             agent_config_map.configs[id].rewfunc = agent.rewfunc
             for hook in agent.hooks:
                 pointer = agent_config_map.configs[id].hooks.add()
-                pointer.name = hook.name
-                pointer.args = json.dumps(hook.dump())
+                pointer.name = hook['name']
+                pointer.args = json.dumps(hook['args'])
         self.stub.SetAgentConfig(agent_config_map)
 
     def get_agent_mode(self, ids: List[str] = []) -> Dict[str, bool]:
@@ -118,31 +125,31 @@ class Client:
             agent_mode_map.modes[id].training = modes[id]
         self.stub.SetAgentMode(agent_mode_map)
 
-    def get_model_weights(self, ids: List[str] = []) -> Dict[str, Any]:
+    def get_model_weights(self, ids: List[str] = []) -> AnyDict:
         model_weights_map = self.stub.GetModelWeights(bff_pb2.ServiceIdList(ids=ids))
         return {id: pickle.loads(msg.weights) for id, msg in model_weights_map.weights.items()}
 
-    def set_model_weights(self, weights: Dict[str, Any]):
+    def set_model_weights(self, weights: AnyDict):
         model_weights_map = bff_pb2.ModelWeightsMap()
         for id in weights:
             model_weights_map.weights[id].weights = pickle.dumps(weights[id])
         self.stub.SetModelWeights(model_weights_map)
 
-    def get_model_buffer(self, ids: List[str] = []) -> Dict[str, Any]:
+    def get_model_buffer(self, ids: List[str] = []) -> AnyDict:
         model_buffer_map = self.stub.GetModelBuffer(bff_pb2.ServiceIdList(ids=ids))
         return {id: pickle.loads(msg.buffer) for id, msg in model_buffer_map.buffers.items()}
 
-    def set_model_buffer(self, buffers: Dict[str, Any]):
+    def set_model_buffer(self, buffers: AnyDict):
         model_buffer_map = bff_pb2.ModelBufferMap()
         for id in buffers:
             model_buffer_map.buffers[id].buffer = pickle.dumps(buffers[id])
         self.stub.SetModelBuffer(model_buffer_map)
 
-    def get_model_status(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
+    def get_model_status(self, ids: List[str] = []) -> Dict[str, AnyDict]:
         model_status_map = self.stub.GetModelStatus(bff_pb2.ServiceIdList(ids=ids))
         return {id: json.loads(msg.status) for id, msg in model_status_map.status.items()}
 
-    def set_model_status(self, status: Dict[str, Dict[str, Any]]):
+    def set_model_status(self, status: Dict[str, AnyDict]):
         model_status_map = bff_pb2.ModelStatusMap()
         for id in status:
             model_status_map.status[id].status = json.dumps(status[id])
@@ -152,14 +159,17 @@ class Client:
         simenv_config_map = self.stub.GetSimenvConfig(bff_pb2.ServiceIdList(ids=ids))
         simenvs = {}
         for id, simenv in simenv_config_map.configs.items():
-            simenvs[id] = Simenv(engine=EngineConfigs[simenv.name](**json.loads(simenv.args)))
+            simenvs[id] = Simenv(
+                name=simenv.name,
+                args=json.loads(simenv.args),
+            )
         return simenvs
 
     def set_simenv_config(self, simenvs: Dict[str, Simenv]):
         simenv_config_map = bff_pb2.SimenvConfigMap()
         for id, simenv in simenvs.items():
-            simenv_config_map.configs[id].name = simenv.engine.name
-            simenv_config_map.configs[id].args = json.dumps(simenv.engine.dump())
+            simenv_config_map.configs[id].name = simenv.name
+            simenv_config_map.configs[id].args = json.dumps(simenv.args)
         self.stub.SetSimenvConfig(simenv_config_map)
 
     def sim_control(self, cmds: Dict[str, str]):
@@ -168,7 +178,7 @@ class Client:
             sim_cmd_map.cmds[id].type = cmds[id]
         self.stub.SimControl(sim_cmd_map)
 
-    def sim_monitor(self, ids: List[str] = []) -> Dict[str, Dict[str, Any]]:
+    def sim_monitor(self, ids: List[str] = []) -> Dict[str, AnyDict]:
         sim_info_map = self.stub.SimMonitor(bff_pb2.ServiceIdList(ids=ids))
         return {
             id: {
@@ -186,3 +196,23 @@ class Client:
             req.data[id].dbin = data[id][2]
         res = self.stub.Call(req)
         return {id: (msg.name, msg.dstr, msg.dbin) for id, msg in res.data.items()}
+
+    def upload_custom(self, ids: List[str], path: str):
+        tmp = tempfile.gettempdir()
+        tgt = pathlib.Path(path)
+        arch = shutil.make_archive(f'{tmp}/temp', 'zip', root_dir=tgt.parent, base_dir=tgt.name)
+        with open(arch, 'rb') as f:
+            file = f.read()
+
+        data = ('@custom', '', file)
+        self.call({id: data for id in ids})
+
+    def upload_custom_model(self, path: str):
+        services = self.get_service_info()
+        ids = [id for id, service in services.items() if service.type == 'agent']
+        self.upload_custom(ids, path)
+
+    def upload_custom_engine(self, path: str):
+        services = self.get_service_info()
+        ids = [id for id, service in services.items() if service.type == 'simenv']
+        self.upload_custom(ids, path)

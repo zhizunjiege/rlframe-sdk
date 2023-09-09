@@ -89,3 +89,36 @@ class ClientTestCase(unittest.TestCase):
         data = self.client.call(data={'simenv': ('test', '', b'')})
         self.assertIn('simenv', data)
         self.assertEqual(data['simenv'][0], 'test')
+
+    def test_13_uploadmodel(self):
+        self.client.upload_custom_model('src/tests/examples/agent/custom.py')
+
+        name = 'Custom'
+        hypers = {'obs_dim': 4, 'act_num': 2}
+        with open('src/tests/examples/agent/states_inputs_func.py', 'r') as f1, \
+             open('src/tests/examples/agent/outputs_actions_func.py', 'r') as f2, \
+             open('src/tests/examples/agent/reward_func.py', 'r') as f3:
+            agents = {
+                'agent': Agent(
+                    name=name,
+                    hypers=hypers,
+                    training=True,
+                    sifunc=f1.read(),
+                    oafunc=f2.read(),
+                    rewfunc=f3.read(),
+                )
+            }
+        self.client.set_agent_config(agents=agents)
+
+    def test_14_uploadengine(self):
+        self.client.upload_custom_engine('src/tests/examples/simenv/custom')
+
+        name = 'Custom'
+        args = {'scenario_id': 0, 'exp_design_id': 0}
+        simenvs = {
+            'simenv': Simenv(
+                name=name,
+                args=args,
+            )
+        }
+        self.client.set_simenv_config(simenvs=simenvs)

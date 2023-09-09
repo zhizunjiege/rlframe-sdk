@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict
 
-from .configs import Service, Agent, Simenv
+from .configs import AnyDict, Service, Agent, Simenv
 from .client import Client
 
 
@@ -101,7 +101,7 @@ class Task:
 
         self.inited = True
 
-    def details(self) -> Dict[str, Dict[str, Any]]:
+    def details(self) -> Dict[str, AnyDict]:
         self.__check_inited()
         details = {}
         states = self.client.query_service(list(self.services.keys()))
@@ -142,11 +142,11 @@ class Task:
         self.__check_inited()
         return self.client.get_model_buffer([id])[id]
 
-    def set_status(self, id: str, status: Dict[str, Any]):
+    def set_status(self, id: str, status: AnyDict):
         self.__check_inited()
         self.client.set_model_status({id: status})
 
-    def get_status(self, id: str) -> Dict[str, Any]:
+    def get_status(self, id: str) -> AnyDict:
         self.__check_inited()
         return self.client.get_model_status([id])[id]
 
@@ -170,7 +170,7 @@ class Task:
         self.__check_inited()
         self.client.sim_control(self.__gen_cmds('stop'))
 
-    def monitor(self) -> Dict[str, Dict[str, Any]]:
+    def monitor(self) -> Dict[str, AnyDict]:
         self.__check_inited()
         return self.client.sim_monitor()
 

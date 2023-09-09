@@ -1,5 +1,5 @@
 from .cqsim import CQSIM
 
-EngineConfigs = {engine.name: engine for engine in [
+EngineConfigs = {engine.__name__: engine for engine in [
     CQSIM,
 ]}

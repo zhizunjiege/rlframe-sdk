@@ -2,22 +2,39 @@ from abc import ABC, abstractmethod
 import json
 from typing import Any, Dict
 
+AnyDict = Dict[str, Any]
+
 
 class ConfigBase(ABC):
     """Abstract base class for all configs."""
 
     @classmethod
+    def from_file(cls, file: str):
+        """Create config from file.
+
+        Args:
+            file: path to config file.
+        """
+        with open(file, 'r') as f:
+            configs = json.load(f)
+
+        return cls(**configs)
+
     @property
-    def name(cls) -> str:
-        """Return name of this config."""
-        return cls.__name__
+    def name(self) -> str:
+        """Get config name.
+
+        Returns:
+            config name.
+        """
+        return self.__class__.__name__
 
     @abstractmethod
     def __init__(self):
         """Init config."""
         ...
 
-    def dump(self) -> Dict[str, Any]:
+    def dump(self) -> AnyDict:
         """Dump config to dict.
 
         Returns:
@@ -29,13 +46,28 @@ class ConfigBase(ABC):
 class ServiceBase(ABC):
     """Abstract base class for all services."""
 
+    @classmethod
+    def from_files(cls, path: str, config='configs.json'):
+        """Create config from files.
+
+        Args:
+            path: path to config files.
+            config: config file name.
+        """
+        with open(f'{path}/{config}', 'r') as f:
+            configs = json.load(f)
+
+        cls.parse_refs(configs, path)
+
+        return cls(**configs)
+
     @abstractmethod
     def __init__(self):
         """Init config."""
         ...
 
     @staticmethod
-    def parse_refs(target: Dict[str, Any], path: str, ref='refs.json'):
+    def parse_refs(target: AnyDict, path: str, ref='refs.json'):
         """Parse refs to target.
 
         Args:
