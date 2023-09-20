@@ -66,8 +66,8 @@ class CQSIM(ConfigBase):
             raise ValueError('sim_duration must be positive')
         if time_step <= 0:
             raise ValueError('time_step must be positive')
-        if speed_ratio <= 0:
-            raise ValueError('speed_ratio must be positive')
+        if speed_ratio == 0:
+            raise ValueError('speed_ratio can not be zero')
 
         self.scenario_id = scenario_id
         self.exp_design_id = exp_design_id
