@@ -79,19 +79,19 @@ class RLModelBase(ABC):
 
     @abstractmethod
     def get_buffer(self) -> Any:
-        """Get buffer of experience replay.
+        """Get the internal state of the buffer.
 
         Returns:
-            Buffer of replay.
+            Internel state of the buffer.
         """
         ...
 
     @abstractmethod
     def set_buffer(self, buffer: Any) -> Any:
-        """Set buffer of experience replay.
+        """Set the internal state of the buffer.
 
         Args:
-            buffer: Buffer of replay.
+            buffer: Internel state of the buffer.
         """
         ...
 

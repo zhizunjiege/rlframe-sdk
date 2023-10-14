@@ -9,33 +9,32 @@ class MADDPG(ConfigBase):
     def __init__(
         self,
         *,
-        agent_num: int = 2,
-        obs_dim: int = 4,
-        act_dim: int = 2,
+        number: int,
+        obs_dim: int,
+        act_dim: int,
         hidden_layers_actor: List[int] = [64, 64],
         hidden_layers_critic: List[int] = [64, 64],
-        lr_actor: float = 0.0001,
-        lr_critic: float = 0.001,
-        gamma: float = 0.99,
-        tau: float = 0.001,
-        replay_size: int = 1000000,
-        batch_size: int = 64,
-        noise_type: Literal['normal', 'ou'] = 'ou',
+        lr_actor=0.0001,
+        lr_critic=0.001,
+        gamma=0.99,
+        tau=0.001,
+        buffer_size=1000000,
+        batch_size=64,
+        noise_type: Literal['normal', 'ou'] = 'normal',
         noise_sigma: Union[float, Iterable[float]] = 0.2,
         noise_theta: Union[float, Iterable[float]] = 0.15,
-        noise_dt: float = 0.01,
-        noise_max: float = 1.0,
-        noise_min: float = 1.0,
-        noise_decay: float = 1.0,
-        update_after: int = 64,
-        update_online_every: int = 1,
-        dtype: str = 'float32',
+        noise_dt=0.01,
+        noise_max=1.0,
+        noise_min=1.0,
+        noise_decay=1.0,
+        update_after=64,
+        update_every=1,
         seed: Optional[int] = None,
     ):
-        """Init config.
+        """Init MADDPG config.
 
         Args:
-            agent_num: Number of agents.
+            number: Number of agents.
             obs_dim: Dimension of observation.
             act_dim: Dimension of actions.
             hidden_layers_actor: Units of actor hidden layers.
@@ -44,7 +43,7 @@ class MADDPG(ConfigBase):
             lr_critic: Learning rate of critic network.
             gamma: Discount factor.
             tau: Soft update factor.
-            replay_size: Maximum size of replay buffer.
+            buffer_size: Maximum size of buffer.
             batch_size: Size of batch.
             noise_type: Type of noise, `normal` or `ou`.
             noise_sigma: Sigma of noise.
@@ -55,14 +54,13 @@ class MADDPG(ConfigBase):
             noise_decay: Decay rate of noise.
                 Note: Noise decayed exponentially, so always between 0 and 1.
             update_after: Number of env interactions to collect before starting to do gradient descent updates.
-                Note: Ensures replay buffer is full enough for useful updates.
-            update_online_every: Number of env interactions that should elapse between gradient descent updates.
+                Note: Ensures buffer is full enough for useful updates.
+            update_every: Number of env interactions that should elapse between gradient descent updates.
                 Note: Regardless of how long you wait between updates, the ratio of env steps to gradient steps is locked to 1.
-            dtype: Data type of model.
             seed: Seed for random number generators.
         """
-        if agent_num < 2:
-            raise ValueError('agent_num must be greater than 1')
+        if number < 2:
+            raise ValueError('number must be greater than 1')
         if obs_dim < 1:
             raise ValueError('obs_dim must be greater than 0')
         if act_dim < 2:
@@ -75,12 +73,12 @@ class MADDPG(ConfigBase):
             raise ValueError('lr_actor must be in (0, 1]')
         if lr_critic <= 0 or lr_critic > 1:
             raise ValueError('lr_critic must be in (0, 1]')
-        if gamma <= 0 or gamma > 1:
-            raise ValueError('gamma must be in (0, 1]')
+        if gamma <= 0 or gamma >= 1:
+            raise ValueError('gamma must be in (0, 1)')
         if tau <= 0 or tau > 1:
             raise ValueError('tau must be in (0, 1]')
-        if replay_size < 1:
-            raise ValueError('replay_size must be greater than 0')
+        if buffer_size < 1:
+            raise ValueError('buffer_size must be greater than 0')
         if batch_size < 1:
             raise ValueError('batch_size must be greater than 0')
         if noise_type not in ['normal', 'ou']:
@@ -113,14 +111,12 @@ class MADDPG(ConfigBase):
             raise ValueError('noise_decay must be in (0, 1]')
         if update_after < batch_size:
             raise ValueError('update_after must be greater than or equal to batch_size')
-        if update_online_every < 1:
-            raise ValueError('update_online_every must be greater than 0')
-        if dtype not in ['float32', 'float64']:
-            raise ValueError('dtype must be float32 or float64')
+        if update_every < 1:
+            raise ValueError('update_every must be greater than 0')
         if seed is not None and (seed < 0 or seed > 2**32 - 1):
             raise ValueError('seed must be in [0, 2**32 - 1] or None for random seed')
 
-        self.agent_num = agent_num
+        self.number = number
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.hidden_layers_actor = hidden_layers_actor
@@ -129,7 +125,7 @@ class MADDPG(ConfigBase):
         self.lr_critic = lr_critic
         self.gamma = gamma
         self.tau = tau
-        self.replay_size = replay_size
+        self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.noise_type = noise_type
         self.noise_sigma = noise_sigma
@@ -139,6 +135,5 @@ class MADDPG(ConfigBase):
         self.noise_min = noise_min
         self.noise_decay = noise_decay
         self.update_after = update_after
-        self.update_online_every = update_online_every
-        self.dtype = dtype
+        self.update_every = update_every
         self.seed = seed

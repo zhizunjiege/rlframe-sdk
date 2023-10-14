@@ -11,8 +11,8 @@ class Custom(RLModelBase):
         self,
         training: bool,
         *,
-        obs_dim: int = 4,
-        act_num: int = 2,
+        obs_dim: int,
+        act_num: int,
     ):
         super().__init__(training)
 
@@ -42,8 +42,8 @@ class Custom(RLModelBase):
     def set_weights(self, weights: Dict[str, List[np.ndarray]]):
         ...
 
-    def get_buffer(self) -> Optional[Dict[str, Union[int, str, Dict[str, np.ndarray]]]]:
+    def get_buffer(self) -> Optional[Dict[str, Union[int, np.ndarray]]]:
         return None
 
-    def set_buffer(self, buffer: Optional[Dict[str, Union[int, str, Dict[str, np.ndarray]]]]):
+    def set_buffer(self, buffer: Optional[Dict[str, Union[int, np.ndarray]]]):
         ...
