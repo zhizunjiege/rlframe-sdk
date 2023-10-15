@@ -13,8 +13,8 @@ setup(
     zip_safe=True,
     python_requires='>=3.8',
     install_requires=[
-        'grpcio>=1.47.0',
-        'grpcio-tools>=1.47.0',
+        'grpcio>=1.48.2',
+        'grpcio-tools>=1.48.2',
         'numpy>=1.23.2',
     ],
     packages=find_namespace_packages(where='src', exclude=['tests']),
