@@ -59,8 +59,8 @@ class DDPG(ConfigBase):
         """
         if obs_dim < 1:
             raise ValueError('obs_dim must be greater than 0')
-        if act_dim < 2:
-            raise ValueError('act_dim must be greater than 1')
+        if act_dim < 1:
+            raise ValueError('act_dim must be greater than 0')
         if len(hidden_layers_actor) < 1:
             raise ValueError('hidden_layers_actor must have at least 1 element')
         if len(hidden_layers_critic) < 1:
