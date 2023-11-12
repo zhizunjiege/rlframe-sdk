@@ -44,7 +44,10 @@
       "name": "AutoSave",
       "args": {
         "per_steps": 1000,
-        "per_episodes": 10
+        "per_episodes": 10,
+        "save_weights": true,
+        "save_buffer": false,
+        "save_status": false
       }
     }
   ]

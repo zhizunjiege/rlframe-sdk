@@ -124,7 +124,7 @@ class Task:
         modes = self.client.get_agent_mode(list(self.agents.keys()))
         modes = {id: not modes[id] for id in modes if self.agents[id].training}
         self.client.set_agent_mode(modes)
-        return all(modes.values())
+        return len(modes) > 0 and all(modes.values())
 
     def set_weights(self, id: str, weights: Any):
         self.__check_inited()

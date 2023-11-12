@@ -1,14 +1,14 @@
 {
   "agent": {
     "type": "agent",
-    "name": "agent-main",
+    "name": "agent",
     "host": "localhost",
     "port": 10002,
     "desc": "agent service"
   },
   "simenv": {
     "type": "simenv",
-    "name": "simenv-main",
+    "name": "simenv",
     "host": "localhost",
     "port": 10001,
     "desc": "simenv service"
